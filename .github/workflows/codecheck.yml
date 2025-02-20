@@ -12,6 +12,9 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
+      - name: Make dingus.sh Executable
+        run: chmod +x dingus.sh
+
       - name: Run dingus.sh
         run: ./dingus.sh
 
