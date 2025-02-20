@@ -1,56 +1,49 @@
 #!/bin/bash
 
-PACKAGE_DIR="$HOME/packages"
-BIN_DIR="$HOME/bin"
+DINGUS_DIR="$HOME/dingus"
+BIN_DIR="$DINGUS_DIR/bin"
+PACKAGES_DIR="$DINGUS_DIR/packages"
+VERSION="1.2.0 (LATEST)"
 
-mkdir -p "$PACKAGE_DIR" "$BIN_DIR"
+if [[ "$1" == "-v" ]]; then
+  echo "dingus version $VERSION"
+  exit 0
+fi
 
-install_package() {
-    PACKAGE_NAME=$1
-    PACKAGE_TOML_URL="https://github.com/packagedingus/packages/raw/main/packages/packages/$PACKAGE_NAME/package.toml"
+if [[ "$1" == "install" ]]; then
+  PACKAGE_NAME="$2"
+  PACKAGE_TOML_URL="https://github.com/packagedingus/packages/packages/$PACKAGE_NAME/package.toml"
+
+  if curl --output /dev/null --silent --head --fail "$PACKAGE_TOML_URL"; then
+    echo "📦 Installing $PACKAGE_NAME..."
     
-    echo "🔎 Searching for package: $PACKAGE_NAME"
-
-    curl -fsSL "$PACKAGE_TOML_URL" -o "$PACKAGE_DIR/$PACKAGE_NAME/package.toml"
-    if [ $? -ne 0 ]; then
-        echo "❌ ERROR! $PACKAGE_NAME could not be found!"
-        return 1
+    PACKAGE_URL=$(curl -fsSL "$PACKAGE_TOML_URL" | grep 'url:' | cut -d '"' -f2)
+    
+    if [[ -z "$PACKAGE_URL" ]]; then
+      echo "ERR! 🔴 Failed to get package URL from package.toml"
+      exit 1
     fi
+    
+    mkdir -p "$PACKAGES_DIR/$PACKAGE_NAME"
+    curl -fsSL "$PACKAGE_URL" -o "$PACKAGES_DIR/$PACKAGE_NAME/package.tar.gz"
+    
+    echo "📂 Extracting $PACKAGE_NAME..."
+    tar -xzf "$PACKAGES_DIR/$PACKAGE_NAME/package.tar.gz" -C "$PACKAGES_DIR/$PACKAGE_NAME"
+    
+    echo "✅ Installed $PACKAGE_NAME!"
+  else
+    echo "ERR! 🔴 $PACKAGE_NAME could not be found! Are you sure it exists?"
+    exit 1
+  fi
+  exit 0
+fi
 
-    PACKAGE_FILE=$(cat "$PACKAGE_DIR/$PACKAGE_NAME/package.toml")
-    PACKAGE_URL=$(echo "$PACKAGE_FILE" | grep -oP '(?<=url: ")[^"]+')
-
-    mkdir -p "$PACKAGE_DIR/$PACKAGE_NAME"
-
-    echo "⬇️ Downloading package from $PACKAGE_URL..."
-    curl -fsSL "$PACKAGE_URL" -o "$PACKAGE_DIR/$PACKAGE_NAME/package.tar.gz"
-    if [ $? -ne 0 ]; then
-        echo "❌ ERR! Failed to download the package from $PACKAGE_URL, Please check your WiFi connection."
-        return 1
-    fi
-
-    echo "📦 Extracting package..."
-    tar -xzvf "$PACKAGE_DIR/$PACKAGE_NAME/package.tar.gz" -C "$PACKAGE_DIR/$PACKAGE_NAME" --strip-components=1
-
-    if [ -f "$PACKAGE_DIR/$PACKAGE_NAME/bin/$PACKAGE_NAME" ]; then
-        mv "$PACKAGE_DIR/$PACKAGE_NAME/bin/$PACKAGE_NAME" "$BIN_DIR/$PACKAGE_NAME"
-        echo "✅ $PACKAGE_NAME has been installed successfully!"
-    else
-        echo "❌ ERR! No executable found in package."
-        return 1
-    fi
-}
-
-case $1 in
-    install)
-        if [ -z "$2" ]; then
-            echo "❌ Usage: dingus install <package_name>"
-            exit 1
-        fi
-        install_package "$2"
-        ;;
-    *)
-        echo "❌ Usage: dingus {install} <package_name>"
-        exit 1
-        ;;
-esac
+if [[ "$1" == "uninstall" ]]; then
+  if [[ "$2" == "all" ]]; then
+    echo "🗑️ Removing all installed packages..."
+    rm -rf "$PACKAGES_DIR"
+    mkdir -p "$PACKAGES_DIR"
+    echo "✅ All packages uninstalled!"
+  else
+    PACKAGE_NAME="$2"
+    if [[ -d "$PACKAGES_DIR/$PACKAGE
