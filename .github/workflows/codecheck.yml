@@ -1,0 +1,24 @@
+name: Dependency Check
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'
+  workflow_dispatch:
+
+jobs:
+  check-dependencies:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Run dingus.sh
+        run: ./dingus.sh
+
+      - name: Create GitHub Issue if Updates Found
+        if: success()
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "Dependency Updates Available"
+          content-filepath: ./dependency-update.md
+          labels: "dependencies, automated"
